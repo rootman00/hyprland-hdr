@@ -7,21 +7,21 @@ __pycache__/
 build/
 dist/
 
-# Виртуальные окружения
+# Virtual environments
 .venv/
 venv/
 env/
 
-# Бэкапы конфига Hyprland, которые создаёт приложение при сохранении
+# Hyprland config backups created by the app when saving
 *.bak
 
-# IDE / редакторы
+# IDEs / editors
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# ОС
+# OS
 .DS_Store
 Thumbs.db

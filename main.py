@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Точка входа: графический менеджер HDR для Hyprland."""
+"""Entry point: graphical HDR manager for Hyprland."""
 
 import sys
 

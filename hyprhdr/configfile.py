@@ -1,8 +1,8 @@
-"""Чтение и правка Hyprland-конфига (monitors.lua) на месте.
+"""Read and edit the Hyprland config (monitors.lua) in place.
 
-Конфиг CachyOS/Lua объявляет мониторы вызовом ``hl.monitor({ ... })``. Этот
-модуль умеет находить такие блоки, разбирать поля ``ключ = значение`` и
-аккуратно обновлять отдельные поля, сохраняя комментарии и форматирование.
+A CachyOS/Lua config declares monitors with ``hl.monitor({ ... })`` calls. This
+module finds such blocks, parses ``key = value`` fields, and updates individual
+fields carefully, preserving comments and formatting.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ _LINE_RE = re.compile(
 
 
 def find_config_path() -> str | None:
-    """Вернуть путь к файлу мониторов, если он есть (иначе None)."""
+    """Return the path to the monitors file if present, else None."""
     xdg = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
     candidates = [
         os.path.join(xdg, "hypr", "config", "monitors.lua"),
@@ -79,10 +79,10 @@ def _parse_body(body: str) -> dict[str, Any]:
 
 
 def _find_bodies(text: str) -> list[tuple[int, int]]:
-    """Индексы пар ``{ ... }`` для каждого ``hl.monitor({`` (start, end).
+    """Indices of ``{ ... }`` pairs for each ``hl.monitor({`` (start, end).
 
-    Индексы отсчитываются в оригинальном тексте. Сканер пропускает ``--``
-    комментарии и строки в кавычках, чтобы скобки внутри них не ломали баланс.
+    Indices refer to the original text. The scanner skips ``--`` comments and
+    quoted strings so braces inside them don't break the balance.
     """
     bodies: list[tuple[int, int]] = []
     n = len(text)
@@ -122,7 +122,7 @@ def _find_bodies(text: str) -> list[tuple[int, int]]:
 
 
 def parse_monitor_specs(text: str) -> list[dict[str, Any]]:
-    """Все мониторы из конфига: список словарей (включая ``output``)."""
+    """All monitors from the config: a list of dicts (including ``output``)."""
     specs: list[dict[str, Any]] = []
     for start, end in _find_bodies(text):
         body = text[start + 1 : end]
@@ -133,7 +133,7 @@ def parse_monitor_specs(text: str) -> list[dict[str, Any]]:
 
 
 def _replace_value(line: str, key: str, new_lua: str) -> str | None:
-    """Заменить значение поля в строке, сохранив запятую и комментарий."""
+    """Replace a field value in a line, preserving the comma and comment."""
     m = _LINE_RE.match(line)
     if m and m.group(2) == key:
         return m.group(1) + m.group(2) + m.group(3) + new_lua + m.group(5)
@@ -164,7 +164,7 @@ def _apply_updates(body: str, updates: dict[str, Any]) -> str:
         if not replaced:
             out.append(line)
 
-    # Добавить недостающие ключи перед закрывающей скобкой.
+    # Add missing keys before the closing brace.
     present = {m.group(2) for m in (_LINE_RE.match(l) for l in out) if m}
     for key, value in updates.items():
         if key not in present:
@@ -174,7 +174,7 @@ def _apply_updates(body: str, updates: dict[str, Any]) -> str:
 
 
 class MonitorConfigFile:
-    """Обёртка над файлом конфига с безопасной записью (бэкап + in-place)."""
+    """Wrapper around the config file with safe writing (backup + in-place edit)."""
 
     def __init__(self, path: str):
         self.path = path
@@ -196,7 +196,7 @@ class MonitorConfigFile:
         return bak
 
     def save(self, output: str, updates: dict[str, Any]) -> str:
-        """Обновить поля монитора ``output`` и записать файл. Возвращает путь бэкапа."""
+        """Update the fields of monitor ``output`` and write the file. Returns the backup path."""
         if self.text is None:
             self.load()
         text = self.text or ""
@@ -209,7 +209,7 @@ class MonitorConfigFile:
                 break
         if target is None:
             raise KeyError(
-                f"Блок hl.monitor({{ output = {output!r}, ... }}) не найден в {self.path}"
+                f"hl.monitor({{ output = {output!r}, ... }}) block not found in {self.path}"
             )
 
         start, end = target

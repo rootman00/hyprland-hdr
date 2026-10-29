@@ -1,8 +1,8 @@
-"""Взаимодействие с Hyprland: чтение состояния и применение настроек.
+"""Hyprland interaction: read state and apply settings.
 
-Hyprland 0.56+ с Lua-конфигом больше не поддерживает ``hyprctl keyword monitor``.
-Правильный способ поменять параметры монитора на лету — выполнить Lua-код через
-``hyprctl repl 'hl.monitor({ ... })'``. Чтение текущего состояния — ``hyprctl
+Hyprland 0.56+ with a Lua config no longer supports ``hyprctl keyword monitor``.
+The correct way to change monitor settings live is to run Lua code via
+``hyprctl repl 'hl.monitor({ ... })'``. Read the current state with ``hyprctl
 monitors -j``.
 """
 
@@ -14,8 +14,8 @@ import subprocess
 from dataclasses import dataclass, field
 from typing import Any
 
-# Поля монитора, которыми управляет программа. Тип определяет, как значение
-# сериализуется в Lua и как форматируется в GUI.
+# Monitor fields managed by the app. The type determines how the value is
+# serialized to Lua and how it is formatted in the GUI.
 COLOR_FIELDS: dict[str, str] = {
     "cm": "str",
     "bitdepth": "int",
@@ -31,8 +31,8 @@ COLOR_FIELDS: dict[str, str] = {
     "max_avg_luminance": "int",
 }
 
-# Поля геометрии/прочего, которые нужно сохранять в spec, чтобы hl.monitor
-# не сбрасывал их в значения по умолчанию.
+# Geometry/misc fields that must be kept in the spec so that hl.monitor
+# does not reset them to defaults.
 GEOMETRY_FIELDS: tuple[str, ...] = (
     "output",
     "mode",
@@ -48,14 +48,14 @@ GEOMETRY_FIELDS: tuple[str, ...] = (
 
 
 class HyprctlError(RuntimeError):
-    """Ошибка выполнения hyprctl (нет Hyprland, нет hyprctl и т.п.)."""
+    """hyprctl execution error (no Hyprland, no hyprctl, etc.)."""
 
 
 def _run(args: list[str]) -> str:
-    """Выполнить hyprctl и вернуть stdout, либо поднять понятную ошибку."""
+    """Run hyprctl and return stdout, or raise a readable error."""
     exe = shutil.which("hyprctl")
     if exe is None:
-        raise HyprctlError("hyprctl не найден в $PATH. Это точно Hyprland-сессия?")
+        raise HyprctlError("hyprctl not found in $PATH. Are you in a Hyprland session?")
     try:
         proc = subprocess.run(
             [exe, *args],
@@ -64,22 +64,22 @@ def _run(args: list[str]) -> str:
             timeout=10,
         )
     except subprocess.TimeoutExpired as exc:
-        raise HyprctlError(f"hyprctl {args[0]} не ответил за 10 с") from exc
+        raise HyprctlError(f"hyprctl {args[0]} timed out after 10 s") from exc
     if proc.returncode != 0:
         detail = (proc.stderr or proc.stdout or "").strip()
-        raise HyprctlError(f"hyprctl {' '.join(args)} завершился с ошибкой: {detail}")
+        raise HyprctlError(f"hyprctl {' '.join(args)} failed: {detail}")
     return proc.stdout
 
 
 def get_monitors() -> list[dict[str, Any]]:
-    """Текущие мониторы из ``hyprctl monitors -j`` (только активные)."""
+    """Current monitors from ``hyprctl monitors -j`` (active ones only)."""
     raw = _run(["monitors", "-j"])
     data = json.loads(raw)
     return [m for m in data if not m.get("disabled", False)]
 
 
 def lua_literal(value: Any) -> str:
-    """Превратить значение Python в корректный литерал Lua."""
+    """Convert a Python value to a valid Lua literal."""
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, str):
@@ -92,7 +92,7 @@ def lua_literal(value: Any) -> str:
 
 
 def build_spec(fields: dict[str, Any]) -> str:
-    """Собрать Lua-таблицу ``{ key = value, ... }`` из словаря."""
+    """Build a Lua table ``{ key = value, ... }`` from a dict."""
     parts = []
     for key, value in fields.items():
         if value is None:
@@ -102,20 +102,20 @@ def build_spec(fields: dict[str, Any]) -> str:
 
 
 def apply_spec(fields: dict[str, Any]) -> None:
-    """Применить параметры монитора на лету через ``hl.monitor``."""
+    """Apply monitor settings live via ``hl.monitor``."""
     spec = build_spec(fields)
     _run(["repl", f"hl.monitor({spec})"])
 
 
 @dataclass
 class Monitor:
-    """Объединённое описание монитора: runtime-состояние + конфиг-поля."""
+    """Merged monitor description: runtime state + config fields."""
 
     name: str
     description: str = ""
     make: str = ""
     model: str = ""
-    # runtime-значения (hyprctl monitors -j)
+    # runtime values (hyprctl monitors -j)
     cm: str = "none"
     sdr_brightness: float = 1.0
     sdr_saturation: float = 1.0
@@ -124,11 +124,11 @@ class Monitor:
     current_format: str = ""
     hdr_capable: bool = False
     wide_color_capable: bool = False
-    # геометрия (для записи в hl.monitor)
+    # geometry (for writing to hl.monitor)
     mode: str = ""
     position: str = "auto"
     scale: float = 1.0
-    # конфиг-поля (берутся из monitors.lua)
+    # config fields (taken from monitors.lua)
     extra: dict[str, Any] = field(default_factory=dict)
 
     @property
@@ -137,7 +137,7 @@ class Monitor:
 
 
 def runtime_monitor_to_monitor(rt: dict[str, Any]) -> Monitor:
-    """Собрать Monitor из записи ``hyprctl monitors -j``."""
+    """Build a Monitor from a ``hyprctl monitors -j`` entry."""
     hw = rt.get("hardwareDetails", {}) or {}
     w = rt.get("width", 0)
     h = rt.get("height", 0)

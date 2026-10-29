@@ -1,3 +1,3 @@
-"""HyprHDR-подобный менеджер HDR для Hyprland (Lua-конфиг)."""
+"""HDR manager for Hyprland (Lua config)."""
 
 __version__ = "0.1.0"

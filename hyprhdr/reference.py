@@ -1,48 +1,48 @@
-"""Справочные (заводские / измеренные) значения для известных мониторов.
+"""Reference (factory / measured) values for known monitors.
 
-По этим данным программа предлагает корректные дефолты для HDR-тонмаппинга
-(``max_luminance``, ``min_luminance``, ``max_avg_luminance``, ``sdr_max_luminance``
-и флаги цветового охвата/разрядности).
+The app uses these to propose correct HDR tone-mapping defaults
+(``max_luminance``, ``min_luminance``, ``max_avg_luminance``,
+``sdr_max_luminance`` and gamut/bit-depth flags).
 
-Источники для Legion Pro 27Q-10 (QD-OLED):
+Sources for Legion Pro 27Q-10 (QD-OLED):
 - https://lab501.ro/diverse/prezentare-lenovo-legion-pro-27q-10-oled/3
-  (белый 258 кд/м², пик 1000 кд/м² на 3% окне / 400 кд/м² на 10%,
+  (258 cd/m² white, 1000 cd/m² peak on a 3% window / 400 cd/m² on 10%,
   99% DCI-P3, 140% sRGB, DisplayHDR True Black 400)
 - https://post.smzdm.com/p/a3rqopv7/
-  (пик 1044 нит на 1%, 1000 на 3%, 786 на 5%, 477 на 10%,
-  полноэкранный 269 нит, 99.44% DCI-P3, 82.56% BT.2020)
+  (1044 nits peak on 1%, 1000 on 3%, 786 on 5%, 477 on 10%,
+  full-screen 269 nits, 99.44% DCI-P3, 82.56% BT.2020)
 """
 
 from __future__ import annotations
 
 from typing import Any
 
-# Ключ — подстрока (в нижнем регистре), которая встречается в строке
-# "make model description" из `hyprctl monitors -j`.
+# Key — a lowercase substring found in the "make model description" string
+# from `hyprctl monitors -j`.
 MONITORS: dict[str, dict[str, Any]] = {
     "27q-10": {
         "known": True,
         "display_name": "Lenovo Legion Pro 27Q-10 (QD-OLED)",
-        "panel": "QD-OLED 26.5\" · 2560×1440 @ 280 Гц",
+        "panel": "QD-OLED 26.5\" · 2560×1440 @ 280 Hz",
         "hdr_cert": "DisplayHDR True Black 400 · VESA ClearMR 15000",
         "gamut": "99% DCI-P3 · 82.6% BT.2020 · 140% sRGB",
-        # яркость, ниты
-        "peak_luminance": 1000,       # HDR-пик (3% окно ≈ 1000 нит)
-        "min_luminance": 0,           # OLED — истинный чёрный
-        "fullscreen_white": 258,      # полноэкранный белый ≈ 258–269 нит
-        "max_avg_luminance": 250,     # защита от ABL (полноэкранный потолок)
-        "sdr_max_luminance": 250,     # пик белого для SDR-окон
-        # разрядность и охват
+        # brightness, nits
+        "peak_luminance": 1000,       # HDR peak (3% window ≈ 1000 nits)
+        "min_luminance": 0,           # OLED — true black
+        "fullscreen_white": 258,      # full-screen white ≈ 258–269 nits
+        "max_avg_luminance": 250,     # ABL protection (full-screen ceiling)
+        "sdr_max_luminance": 250,     # peak white for SDR windows
+        # bit depth and gamut
         "bitdepth": 10,
         "supports_hdr": 1,
         "supports_wide_color": 1,
     },
 }
 
-# Дефолты для панелей, которых нет в базе (примерные, не измеренные).
+# Defaults for panels not in the database (approximate, not measured).
 DEFAULT_REFERENCE: dict[str, Any] = {
     "known": False,
-    "display_name": "Неизвестная панель",
+    "display_name": "Unknown panel",
     "panel": "",
     "hdr_cert": "",
     "gamut": "",
@@ -58,7 +58,7 @@ DEFAULT_REFERENCE: dict[str, Any] = {
 
 
 def lookup(make: str = "", model: str = "", description: str = "") -> dict[str, Any]:
-    """Найти референс по make/model/description монитора."""
+    """Find a reference by monitor make/model/description."""
     combined = f"{make} {model} {description}".lower()
     for pattern, ref in MONITORS.items():
         if pattern in combined:

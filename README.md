@@ -1,27 +1,25 @@
 # hdr-manager
 
-Небольшая программа для визуального управления HDR в Wayland (Hyprland 0.56+ с
-**Lua-конфигом**, например CachyOS). Позволяет на лету включать/выключать HDR и
-крутить параметры SDR-тонмаппинга, как в [gloam](https://github.com/halideworks/gloam),
-но для Hyprland.
+A small GUI for visual HDR management on Wayland (Hyprland 0.56+ with a
+**Lua config**, e.g. CachyOS). Toggle HDR and adjust SDR tone-mapping live.
 
-## Что умеет (v1)
+## Features (v1)
 
-- Переключатель **HDR** (`cm = "hdr"` ↔ `cm = "srgb"`)
-- **SDR-яркость** (`sdrbrightness`) — главная «крутилка» против вымытого SDR в HDR
-- **SDR-насыщенность** (`sdrsaturation`)
-- **SDR max luminance** (`sdr_max_luminance`, в нитах)
-- **Пиковая яркость** HDR-панели (`max_luminance`, в нитах)
-- **Средняя яркость / ABL** (`max_avg_luminance`)
-- **SDR EOTF** (гамма) и **глубина цвета** (8/10 бит)
-- **Референс монитора** — справочные (измеренные) значения панели и кнопка
-  «Применить референс», сбрасывающая яркостные лимиты к заводским
-- Применение на лету (слайдер → сразу к монитору) и **сохранение в конфиг**
+- **HDR** toggle (`cm = "hdr"` ↔ `cm = "srgb"`)
+- **SDR brightness** (`sdrbrightness`) — the main control against washed-out SDR in HDR
+- **SDR saturation** (`sdrsaturation`)
+- **SDR max luminance** (`sdr_max_luminance`, nits)
+- **Peak brightness** of the HDR panel (`max_luminance`, nits)
+- **Average brightness / ABL** (`max_avg_luminance`)
+- **SDR EOTF** (gamma) and **color depth** (8/10-bit)
+- **Monitor reference** — measured panel values and an "Apply reference" button
+  that resets luminance limits to factory values
+- Live apply (slider → monitor immediately) and **save to config**
 
-## Требования
+## Requirements
 
-- Hyprland 0.56+ с Lua-конфигом (проверено на 0.57.0)
-- `hyprctl` в `$PATH`
+- Hyprland 0.56+ with a Lua config (tested on 0.57.0)
+- `hyprctl` in `$PATH`
 - Python 3.10+, PyGObject + GTK4 + libadwaita
 
 Arch Linux:
@@ -30,67 +28,68 @@ Arch Linux:
 sudo pacman -S python python-gobject gtk4 libadwaita
 ```
 
-## Запуск
+## Usage
 
 ```bash
 cd hdr-manager
 python3 main.py
 ```
 
-Или сделать исполняемым:
+Or make it executable:
 
 ```bash
 chmod +x main.py && ./main.py
 ```
 
-## Как это работает
+## How it works
 
-В Hyprland 0.56+ конфиг-провайдер — Lua, поэтому старый `hyprctl keyword monitor`
-**не работает**. Программа использует:
+On Hyprland 0.56+ the config provider is Lua, so the old
+`hyprctl keyword monitor` **does not work**. The app uses:
 
-- **чтение:** `hyprctl monitors -j`
-- **применение:** `hyprctl repl 'hl.monitor({ ... })'` (вызов Lua-API на лету)
-- **сохранение:** правка `~/.config/hypr/config/monitors.lua` на месте, с бэкапом
-  в `monitors.lua.bak` перед каждой записью
+- **read:** `hyprctl monitors -j`
+- **apply:** `hyprctl repl 'hl.monitor({ ... })'` (call the Lua API live)
+- **save:** edit `~/.config/hypr/config/monitors.lua` in place, with a backup to
+  `monitors.lua.bak` before each write
 
-## Структура
+## Structure
 
 ```
 hdr-manager/
-├── main.py               # точка входа
+├── main.py               # entry point
 ├── hyprhdr/
-│   ├── backend.py        # hyprctl: чтение/запись, Lua-литералы
-│   ├── configfile.py     # парсинг и правка monitors.lua
-│   ├── reference.py      # база справочных значений известных мониторов
-│   └── gui.py            # интерфейс GTK4/libadwaita
+│   ├── backend.py        # hyprctl: read/write, Lua literals
+│   ├── configfile.py     # parse and edit monitors.lua
+│   ├── reference.py      # database of measured values for known monitors
+│   └── gui.py            # GTK4/libadwaita interface
 └── README.md
 ```
 
-## Справочные значения
+## Reference values
 
-В [`hyprhdr/reference.py`](hyprhdr/reference.py) лежат измеренные характеристики
-известных панелей. Для **Lenovo Legion Pro 27Q-10 (QD-OLED)** это:
+[`hyprhdr/reference.py`](hyprhdr/reference.py) holds measured characteristics of
+known panels. For the **Lenovo Legion Pro 27Q-10 (QD-OLED)**:
 
-| Параметр | Значение | Откуда |
+| Parameter | Value | Source |
 |---|---|---|
-| Пик HDR | **1000 нит** (3% окно, до 1044 на 1%) | lab501 / smzdm |
-| Полноэкранный белый | **258–269 нит** | lab501 / smzdm |
-| Чёрный | **0 нит** (OLED) | — |
-| Охват | 99% DCI-P3 · 82.6% BT.2020 · 140% sRGB | lab501 / smzdm |
-| Сертификация | DisplayHDR True Black 400 | lab501 |
+| HDR peak | **1000 nits** (3% window, up to 1044 on 1%) | lab501 / smzdm |
+| Full-screen white | **258–269 nits** | lab501 / smzdm |
+| Black | **0 nits** (OLED) | — |
+| Gamut | 99% DCI-P3 · 82.6% BT.2020 · 140% sRGB | lab501 / smzdm |
+| Certification | DisplayHDR True Black 400 | lab501 |
 
-Из них программа берёт дефолты для `max_luminance`, `min_luminance`,
-`max_avg_luminance`, `sdr_max_luminance` и флагов охвата. Кнопка
-**«Применить референс»** сбрасывает яркостные лимиты к этим значениям.
-Добавить свой монитор — дописать запись в `MONITORS`.
+The app derives defaults for `max_luminance`, `min_luminance`,
+`max_avg_luminance`, `sdr_max_luminance` and gamut flags from these values. The
+**"Apply reference"** button resets luminance limits to them. To add your own
+monitor, add an entry to `MONITORS`.
 
-## Ограничения и TODO
+## Limitations and TODO
 
-- Пока ориентировано на `hl.monitor({ ... })`-блоки (Lua-конфиг). Классический
-  однострочный `monitor = ...` в `.conf` не поддерживается.
-- Правка конфига — только поля внутри уже существующего блока `hl.monitor` для
-  выбранного `output`.
-- **Дальше (как в gloam):** автоматический подгон — ночной режим по времени суток
-  (снижение яркости/насыщенности вечером) и/или авто-HDR по контенту
-  (`render.cm_auto_hdr`). Точка расширения — `hyprhdr/gui.py::HdrWindow._set_field`,
-  весь доступ к параметрам уже изолирован в `backend.apply_spec`.
+- Currently targets `hl.monitor({ ... })` blocks (Lua config). The classic
+  single-line `monitor = ...` in a `.conf` is not supported.
+- Config editing only touches fields inside an existing `hl.monitor` block for
+  the selected `output`.
+- **Next:** automatic adjustment — a time-of-day night mode (lowering
+  brightness/saturation in the evening) and/or content-based auto-HDR
+  (`render.cm_auto_hdr`). The extension point is
+  `hyprhdr/gui.py::HdrWindow._set_field`; parameter access is already isolated
+  in `backend.apply_spec`.

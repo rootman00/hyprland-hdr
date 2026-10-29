@@ -1,4 +1,4 @@
-"""Графический интерфейс (GTK4 + libadwaita)."""
+"""Graphical interface (GTK4 + libadwaita)."""
 
 from __future__ import annotations
 
@@ -14,13 +14,13 @@ from . import reference
 
 APP_ID = "app.hdrmgr.HdrManager"
 
-# Описание слайдеров: (ключ, заголовок, подпись, мин, макс, шаг, знаков, ед., тип)
+# Slider description: (key, title, subtitle, min, max, step, digits, unit, type)
 _SLIDERS: list[tuple] = [
-    ("sdrbrightness", "SDR-яркость", "Яркость SDR-контента внутри HDR-контейнера", 0.2, 3.0, 0.05, 2, "", "float"),
-    ("sdrsaturation", "SDR-насыщенность", "Компенсирует «вымытость» SDR в HDR", 0.0, 3.0, 0.05, 2, "", "float"),
-    ("sdr_max_luminance", "SDR max luminance", "Пик белого для SDR-окон (ниты)", 50, 500, 5, 0, " нит", "int"),
-    ("max_luminance", "Пиковая яркость (HDR)", "Аппаратный пик панели в нитах", 200, 2000, 25, 0, " нит", "int"),
-    ("max_avg_luminance", "Средняя яркость (ABL)", "Ограничение средней яркости (защита от ABL)", 50, 1000, 25, 0, " нит", "int"),
+    ("sdrbrightness", "SDR brightness", "Brightness of SDR content inside the HDR container", 0.2, 3.0, 0.05, 2, "", "float"),
+    ("sdrsaturation", "SDR saturation", "Compensates washed-out SDR in HDR", 0.0, 3.0, 0.05, 2, "", "float"),
+    ("sdr_max_luminance", "SDR max luminance", "White peak for SDR windows (nits)", 50, 500, 5, 0, " nits", "int"),
+    ("max_luminance", "Peak brightness (HDR)", "Hardware peak of the panel in nits", 200, 2000, 25, 0, " nits", "int"),
+    ("max_avg_luminance", "Average brightness (ABL)", "Average brightness limit (ABL protection)", 50, 1000, 25, 0, " nits", "int"),
 ]
 
 _EOTFS = ["default", "srgb", "gamma22"]
@@ -37,7 +37,7 @@ def _coerce(key: str, value: float | str) -> object:
 
 
 class _ScaleRow(Adw.PreferencesRow):
-    """Строка со слайдером и подписью текущего значения."""
+    """A row with a slider and a label for the current value."""
 
     def __init__(self, key, title, subtitle, minimum, maximum, step, digits, unit):
         super().__init__()
@@ -91,14 +91,14 @@ class _ScaleRow(Adw.PreferencesRow):
             self.value_label.set_text(f"{value:.{self.digits}f}{self.unit}")
 
     def set_value_silent(self, value: float):
-        # Применение гасится в HdrWindow._set_field флагом self._loading.
+        # Apply is suppressed by HdrWindow._set_field via the self._loading flag.
         self.scale.set_value(float(value))
 
 
 class HdrWindow(Adw.Window):
     def __init__(self, app: Adw.Application):
         super().__init__(application=app)
-        self.set_title("Управление HDR")
+        self.set_title("HDR Manager")
         self.set_default_size(460, 620)
 
         self._loading = True
@@ -114,10 +114,10 @@ class HdrWindow(Adw.Window):
         toolbar = Adw.ToolbarView()
 
         header = Adw.HeaderBar()
-        self.reset_btn = Gtk.Button(label="Сбросить")
+        self.reset_btn = Gtk.Button(label="Reset")
         self.reset_btn.connect("clicked", self._on_reset)
         header.pack_start(self.reset_btn)
-        self.save_btn = Gtk.Button(label="Сохранить в конфиг")
+        self.save_btn = Gtk.Button(label="Save to config")
         self.save_btn.add_css_class("suggested-action")
         self.save_btn.connect("clicked", self._on_save)
         header.pack_end(self.save_btn)
@@ -129,11 +129,11 @@ class HdrWindow(Adw.Window):
         page = Adw.PreferencesPage()
         scroll.set_child(page)
 
-        # --- Группа «Монитор» ---
-        mon_group = Adw.PreferencesGroup(title="Монитор")
+        # --- Monitor group ---
+        mon_group = Adw.PreferencesGroup(title="Monitor")
         page.add(mon_group)
 
-        self.mon_combo = Adw.ComboRow(title="Монитор")
+        self.mon_combo = Adw.ComboRow(title="Monitor")
         self.mon_combo.connect("notify::selected", self._on_monitor_selected)
         mon_group.add(self.mon_combo)
 
@@ -145,12 +145,12 @@ class HdrWindow(Adw.Window):
         self.status_label.add_css_class("dim-label")
         mon_group.add(self.status_label)
 
-        # --- Группа «HDR» ---
+        # --- HDR group ---
         self.hdr_group = Adw.PreferencesGroup(title="HDR")
         page.add(self.hdr_group)
 
         self.hdr_switch = Adw.SwitchRow(title="HDR")
-        self.hdr_switch.set_subtitle("Широкий цветовой охват + PQ (10 бит)")
+        self.hdr_switch.set_subtitle("Wide color gamut + PQ (10-bit)")
         self.hdr_switch.connect("notify::active", self._on_hdr_toggled)
         self.hdr_group.add(self.hdr_switch)
 
@@ -161,27 +161,27 @@ class HdrWindow(Adw.Window):
             self.scale_rows[key] = row
             self.hdr_group.add(row)
 
-        # --- Дополнительно ---
-        adv_group = Adw.PreferencesGroup(title="Дополнительно")
+        # --- Advanced ---
+        adv_group = Adw.PreferencesGroup(title="Advanced")
         page.add(adv_group)
-        exp = Adw.ExpanderRow(title="Параметры цвета и разрядность")
+        exp = Adw.ExpanderRow(title="Color and bit-depth settings")
         adv_group.add(exp)
 
-        self.eotf_combo = Adw.ComboRow(title="SDR EOTF (гамма)")
+        self.eotf_combo = Adw.ComboRow(title="SDR EOTF (gamma)")
         self.eotf_combo.set_model(Gtk.StringList.new(_EOTFS))
         self.eotf_combo.connect("notify::selected", self._on_eotf_changed)
         exp.add_row(self.eotf_combo)
 
-        self.bitdepth_combo = Adw.ComboRow(title="Глубина цвета")
+        self.bitdepth_combo = Adw.ComboRow(title="Color depth")
         self.bitdepth_combo.set_model(Gtk.StringList.new(_BITDEPTHS))
         self.bitdepth_combo.connect("notify::selected", self._on_bitdepth_changed)
         exp.add_row(self.bitdepth_combo)
 
-        # --- Референс монитора ---
-        ref_group = Adw.PreferencesGroup(title="Референс монитора")
+        # --- Monitor reference ---
+        ref_group = Adw.PreferencesGroup(title="Monitor reference")
         page.add(ref_group)
 
-        self.ref_expander = Adw.ExpanderRow(title="Справочные значения панели")
+        self.ref_expander = Adw.ExpanderRow(title="Panel reference values")
         ref_group.add(self.ref_expander)
 
         self.ref_info_label = Gtk.Label(label="", xalign=0.0, wrap=True, selectable=True)
@@ -195,8 +195,8 @@ class HdrWindow(Adw.Window):
         info_row.set_child(info_box)
         self.ref_expander.add_row(info_row)
 
-        apply_row = Adw.ActionRow(title="Сбросить яркостные лимиты к референсу")
-        self.ref_apply_btn = Gtk.Button(label="Применить")
+        apply_row = Adw.ActionRow(title="Reset luminance limits to reference")
+        self.ref_apply_btn = Gtk.Button(label="Apply")
         self.ref_apply_btn.add_css_class("suggested-action")
         self.ref_apply_btn.connect("clicked", self._on_apply_reference)
         apply_row.add_suffix(self.ref_apply_btn)
@@ -220,7 +220,7 @@ class HdrWindow(Adw.Window):
             spec["position"] = monitor.position
             spec["scale"] = monitor.scale
 
-        # Актуальные runtime-значения имеют приоритет.
+        # Current runtime values take priority.
         spec["output"] = monitor.name
         spec["cm"] = monitor.cm
         spec["sdrbrightness"] = monitor.sdr_brightness
@@ -231,7 +231,7 @@ class HdrWindow(Adw.Window):
         spec.setdefault("position", monitor.position)
         spec.setdefault("scale", monitor.scale)
 
-        # Аппаратные поля, которых нет в runtime, берём из референса панели.
+        # Hardware fields missing at runtime are taken from the panel reference.
         ref = self.reference
         spec.setdefault("bitdepth", ref["bitdepth"])
         spec.setdefault("max_luminance", ref["peak_luminance"])
@@ -262,7 +262,7 @@ class HdrWindow(Adw.Window):
             try:
                 self.specs = self.config_file.specs()
             except OSError as exc:
-                self._toast(f"Не удалось прочитать конфиг: {exc}", error=True)
+                self._toast(f"Failed to read config: {exc}", error=True)
         self.save_btn.set_sensitive(self.config_path is not None)
 
         names = [m.name for m in self.runtime]
@@ -307,16 +307,16 @@ class HdrWindow(Adw.Window):
             if ref["gamut"]:
                 lines.append(ref["gamut"])
             lines.append(
-                f"Пик HDR: {ref['peak_luminance']} нит · "
-                f"полноэкранный белый: {ref['fullscreen_white']} нит · "
-                f"чёрный: {ref['min_luminance']} нит"
+                f"HDR peak: {ref['peak_luminance']} nits · "
+                f"full-screen white: {ref['fullscreen_white']} nits · "
+                f"black: {ref['min_luminance']} nits"
             )
             self.ref_info_label.set_text("\n".join(lines))
             self.ref_apply_btn.set_sensitive(True)
         else:
             self.ref_info_label.set_text(
-                f"Справочных данных для «{mon.description or mon.name}» нет.\n"
-                "Будут использованы общие дефолты."
+                f"No reference data for \"{mon.description or mon.name}\".\n"
+                "Generic defaults will be used."
             )
             self.ref_apply_btn.set_sensitive(False)
 
@@ -326,7 +326,7 @@ class HdrWindow(Adw.Window):
             self.status_label.set_text("")
             return
         fmt = mon.current_format or ""
-        bits = "10 бит" if "2101010" in fmt or "10" in fmt else "8 бит"
+        bits = "10-bit" if "2101010" in fmt or "10" in fmt else "8-bit"
         parts = [mon.name]
         if mon.hdr_on:
             parts.append("HDR (PQ)")
@@ -350,7 +350,7 @@ class HdrWindow(Adw.Window):
         self._timeout_id = None
         try:
             backend.apply_spec(self.spec)
-            self._toast("Применено")
+            self._toast("Applied")
         except backend.HyprctlError as exc:
             self._toast(str(exc), error=True)
         return GLib.SOURCE_REMOVE
@@ -390,7 +390,7 @@ class HdrWindow(Adw.Window):
 
     def _on_reset(self, _btn):
         self._load_state()
-        self._toast("Перечитано из Hyprland")
+        self._toast("Reloaded from Hyprland")
 
     def _reference_fields(self) -> dict:
         ref = self.reference
@@ -406,7 +406,7 @@ class HdrWindow(Adw.Window):
 
     def _on_apply_reference(self, _btn):
         if not self.reference.get("known"):
-            self._toast("Нет справочных данных для этой панели", error=True)
+            self._toast("No reference data for this panel", error=True)
             return
         fields = self._reference_fields()
         self._loading = True
@@ -422,11 +422,11 @@ class HdrWindow(Adw.Window):
         finally:
             self._loading = False
         self._flush()
-        self._toast("Применены референсные значения")
+        self._toast("Reference values applied")
 
     def _on_save(self, _btn):
         if self.config_file is None:
-            self._toast("Файл конфига не найден", error=True)
+            self._toast("Config file not found", error=True)
             return
         updates = {
             k: self.spec[k]
@@ -435,9 +435,9 @@ class HdrWindow(Adw.Window):
         }
         try:
             bak = self.config_file.save(self.current_name, updates)
-            self._toast(f"Сохранено (бэкап: {bak})")
+            self._toast(f"Saved (backup: {bak})")
         except (OSError, KeyError) as exc:
-            self._toast(f"Ошибка сохранения: {exc}", error=True)
+            self._toast(f"Save failed: {exc}", error=True)
 
 
 class HdrApp(Adw.Application):

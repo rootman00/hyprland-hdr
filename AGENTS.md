@@ -1,71 +1,69 @@
 # AGENTS.md
 
-Инструкция для агентов (и людей), работающих с этим репозиторием. Прочитай
-перед правками.
+Instructions for agents (and humans) working on this repository. Read before
+making changes.
 
-## Что это
+## What this is
 
-Графический менеджер HDR для **Hyprland 0.56+ с Lua-конфигом** (например
-CachyOS). GTK4 + libadwaita на Python (PyGObject). Позволяет на лету
-включать/выключать HDR, крутить SDR-тонмаппинг и сохранять настройки в конфиг.
+A graphical HDR manager for **Hyprland 0.56+ with a Lua config** (e.g. CachyOS).
+GTK4 + libadwaita on Python (PyGObject). Toggles HDR and adjusts SDR
+tone-mapping live, and saves settings back to the config.
 
-## Критические факты — не ломать
+## Critical facts — do not break
 
-1. **`hyprctl keyword monitor ...` НЕ работает** в Hyprland 0.56+ с Lua-конфигом
-   (конфиг-провайдер `lua`). Запись на лету — только через
-   `hyprctl repl 'hl.monitor({ ... })'`. Реализовано в
+1. **`hyprctl keyword monitor ...` does NOT work** on Hyprland 0.56+ with a Lua
+   config (the config provider is `lua`). Live writes must go through
+   `hyprctl repl 'hl.monitor({ ... })'`. Implemented in
    `hyprhdr/backend.py::apply_spec`.
-2. **Чтение** — `hyprctl monitors -j` (поля runtime в **camelCase**:
+2. **Read** — `hyprctl monitors -j` (runtime fields are **camelCase**:
    `sdrBrightness`, `sdrSaturation`, `sdrMinLuminance`, `sdrMaxLuminance`,
    `colorManagementPreset`).
-3. **Поля Lua-конфига** в `hl.monitor({ ... })` — в **snake_case**, но с
-   неочевидными исключениями: `sdrbrightness` и `sdrsaturation` **без
-   подчёркивания**, а `sdr_min_luminance` / `sdr_max_luminance` — **с
-   подчёркиванием**. Полный список — `backend.COLOR_FIELDS`. Не путать с
-   runtime camelCase из п.2.
-4. **Значения `cm`**: `"hdr"` (HDR вкл) ↔ `"srgb"` (SDR); также бывают `"none"`,
-   `"edid"`.
-5. **Сохранение конфига** — `hyprhdr/configfile.py`, правка блока
-   `hl.monitor({ ... })` на месте с бэкапом в `*.bak` перед каждой записью.
-   Парсер намеренно консервативный (построчные регэкспы + сканер скобок,
-   пропускающий `--`-комментарии и строки в кавычках). Не заменяй его на
-   «полный» Lua-парсер без тестов — рискуешь повредить пользовательский конфиг.
+3. **Lua config fields** inside `hl.monitor({ ... })` are **snake_case**, with
+   non-obvious exceptions: `sdrbrightness` and `sdrsaturation` have **no
+   underscore**, while `sdr_min_luminance` / `sdr_max_luminance` **do**. The full
+   list is `backend.COLOR_FIELDS`. Don't confuse them with the runtime camelCase
+   fields from point 2.
+4. **`cm` values**: `"hdr"` (HDR on) ↔ `"srgb"` (SDR); also `"none"`, `"edid"`.
+5. **Saving the config** — `hyprhdr/configfile.py`, edits the `hl.monitor({ ... })`
+   block in place with a `*.bak` backup before each write. The parser is
+   deliberately conservative (line-by-line regex + a brace scanner that skips
+   `--` comments and quoted strings). Don't replace it with a "full" Lua parser
+   without tests — you risk corrupting the user's config.
 
-## Модули
+## Modules
 
-- `hyprhdr/backend.py` — hyprctl: чтение/запись, Lua-литералы, dataclass `Monitor`.
-- `hyprhdr/configfile.py` — поиск/парсинг/правка `monitors.lua`.
-- `hyprhdr/reference.py` — база измеренных значений мониторов (ключ — подстрока,
-  напр. `"27q-10"`). Фолбэк — `DEFAULT_REFERENCE`.
-- `hyprhdr/gui.py` — интерфейс; `HdrWindow` — состояние и логика применения.
-- `main.py` — точка входа.
+- `hyprhdr/backend.py` — hyprctl: read/write, Lua literals, the `Monitor` dataclass.
+- `hyprhdr/configfile.py` — find/parse/edit `monitors.lua`.
+- `hyprhdr/reference.py` — database of measured monitor values (keyed by a
+  substring, e.g. `"27q-10"`). Fallback is `DEFAULT_REFERENCE`.
+- `hyprhdr/gui.py` — interface; `HdrWindow` holds state and apply logic.
+- `main.py` — entry point.
 
-## Конвенции
+## Conventions
 
-- UI-строки и комментарии — на русском; идентификаторы/ключи — на английском.
-- Новое поле HDR добавлять через `backend.COLOR_FIELDS` (+ слайдер в
-  `gui._SLIDERS`, если нужен). Типы: `str`/`int`/`float` — определяют
-  Lua-сериализацию и округление.
-- Применение на лету — через `HdrWindow._set_field` (дебаунс 120 мс →
-  `_flush` → `backend.apply_spec`). При программной установке виджетов ставить
-  `self._loading = True`, чтобы не триггерить повторное применение.
-- Геометрия (`mode`, `position`, `scale`) всегда должна присутствовать в spec
-  при `hl.monitor`, иначе Hyprland сбросит её в дефолт — см. `_build_spec`.
+- UI strings and comments are in English; identifiers/keys in English.
+- Add a new HDR field via `backend.COLOR_FIELDS` (+ a slider in `gui._SLIDERS`
+  if needed). Types `str`/`int`/`float` drive Lua serialization and rounding.
+- Live apply goes through `HdrWindow._set_field` (120 ms debounce → `_flush` →
+  `backend.apply_spec`). When setting widgets programmatically, set
+  `self._loading = True` to avoid re-triggering an apply.
+- Geometry (`mode`, `position`, `scale`) must always be present in the spec for
+  `hl.monitor`, otherwise Hyprland resets it to defaults — see `_build_spec`.
 
-## Как запускать / проверять
+## How to run / verify
 
 ```bash
 python3 main.py
-python3 -m py_compile hyprhdr/*.py main.py   # быстрая проверка синтаксиса
-hyprctl monitors -j                          # текущее состояние
-hyprctl repl 'hl.monitor({ output = "DP-3", cm = "srgb" })'  # ручное применение
+python3 -m py_compile hyprhdr/*.py main.py   # quick syntax check
+hyprctl monitors -j                          # current state
+hyprctl repl 'hl.monitor({ output = "DP-3", cm = "srgb" })'  # manual apply
 ```
 
-GUI тестируется только в живой Wayland/Hyprland-сессии; в CI/песочнице без GPU
-появляются безвредные предупреждения Vulkan/MESA/dconf — это норма.
+The GUI only works in a live Wayland/Hyprland session; in CI/sandboxes without a
+GPU you'll see harmless Vulkan/MESA/dconf warnings — that's expected.
 
-## Расширения (TODO)
+## Extensions (TODO)
 
-- Автоподгон как в gloam (ночной режим по времени суток и/или авто-HDR по
-  контенту через `render.cm_auto_hdr`). Точки расширения уже изолированы:
-  `backend.apply_spec` (применение) и `HdrWindow._set_field` (источник изменений).
+- Automatic adjustment — a time-of-day night mode and/or content-based auto-HDR
+  via `render.cm_auto_hdr`. The extension points are already isolated:
+  `backend.apply_spec` (apply) and `HdrWindow._set_field` (source of changes).
