@@ -107,6 +107,33 @@ def apply_spec(fields: dict[str, Any]) -> None:
     _run(["repl", f"hl.monitor({spec})"])
 
 
+def _get_option(name: str) -> Any:
+    """Read one option via ``hyprctl getoption <name> -j`` (JSON)."""
+    raw = _run(["getoption", name, "-j"])
+    data = json.loads(raw)
+    for key in ("int", "bool", "str", "float"):
+        if key in data:
+            return data[key]
+    return data.get("set", False)
+
+
+def get_render_options() -> dict[str, int]:
+    """Current color-management render options (live values, as 0/1 ints)."""
+    def _as_int(value: Any) -> int:
+        return 1 if value is True else 0 if value is False else int(value)
+
+    return {
+        "cm_enabled": _as_int(_get_option("render:cm_enabled")),
+        "cm_auto_hdr": _as_int(_get_option("render:cm_auto_hdr")),
+    }
+
+
+def apply_render(fields: dict[str, Any]) -> None:
+    """Apply ``render`` options live via ``hl.config`` (merges, keeps the rest)."""
+    spec = build_spec(fields)
+    _run(["repl", f"hl.config({{ render = {spec} }})"])
+
+
 @dataclass
 class Monitor:
     """Merged monitor description: runtime state + config fields."""
