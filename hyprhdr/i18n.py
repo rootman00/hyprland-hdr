@@ -98,8 +98,10 @@ _TRANSLATIONS: dict[str, str] = {
     "updated": "обновлено",
     "Fetching sun times…": "Получаю время восхода/заката…",
     "No sun data yet.": "Данных о солнце пока нет.",
-    "Could not fetch sun times: {msg}":
-        "Не удалось получить время восхода/заката: {msg}",
+    "Could not detect location (check your internet connection).":
+        "Не удалось определить местоположение (проверьте интернет-соединение).",
+    "Could not compute sun times: {msg}":
+        "Не удалось вычислить время восхода/заката: {msg}",
     "Color management is disabled (render.cm_enabled = 0). "
     "The sliders have no effect until it is enabled (requires a Hyprland restart).":
         "Цветоуправление выключено (render.cm_enabled = 0). "

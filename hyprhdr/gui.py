@@ -694,11 +694,19 @@ class HdrWindow(Adw.Window):
                     lng = coords["longitude"]
                     tz = coords["timezone"]
             if lat is None or lng is None:
-                raise RuntimeError("no coordinates")
+                GLib.idle_add(
+                    self._on_sun_error,
+                    i18n.tr("Could not detect location (check your internet connection)."),
+                )
+                return
+            # Times are computed locally (NOAA); only geolocation used the network.
             times = sun.fetch_sun_times(lat, lng, tz_name=tz)
             GLib.idle_add(self._on_sun_result, times, lat, lng, tz)
-        except Exception as exc:  # noqa: BLE001 - network/parse errors are expected
-            GLib.idle_add(self._on_sun_error, str(exc))
+        except Exception as exc:  # noqa: BLE001 - polar day/night etc.
+            GLib.idle_add(
+                self._on_sun_error,
+                i18n.tr("Could not compute sun times: {msg}").format(msg=exc),
+            )
 
     def _on_sun_result(self, times, lat, lng, tz) -> None:
         if self._destroyed:
@@ -718,7 +726,7 @@ class HdrWindow(Adw.Window):
         if self._destroyed:
             return
         self._sun_fetching = False
-        self._toast(i18n.tr("Could not fetch sun times: {msg}").format(msg=msg), error=True)
+        self._toast(msg, error=True)
         self._update_sun_ui()
 
     def _on_schedule_mode_changed(self, combo, _pspec):

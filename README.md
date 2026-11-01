@@ -10,7 +10,7 @@ A small GUI for visual HDR management on Wayland (Hyprland 0.56+ with a
   on top of `cm = "srgb"`: SDR by default, auto-switch to HDR for HDR content
 - **Night mode (schedule)** — lower SDR brightness/saturation at night and
   restore them in the morning (HDR stays on); either **manual hours** or
-  **sun-based** (sunrise/sunset fetched from the internet for your location)
+  **sun-based** (location from the internet, sunrise/sunset computed locally)
 - **SDR brightness** (`sdrbrightness`) — the main control against washed-out SDR in HDR
 - **SDR saturation** (`sdrsaturation`)
 - **SDR min luminance** (`sdr_min_luminance`, nits) — SDR black level for the tone map
@@ -122,9 +122,11 @@ group:
 - **Schedule source** — **Manual** (fixed hours) or **Sun (internet)**
 - **Night brightness / saturation** — values applied during the night window
 - **Night starts / ends (hour)** — the manual window (wraps midnight, e.g. 22 → 7)
-- **Sun data / Update now** — with **Sun** mode, sunrise/sunset are fetched from
-  the internet (IP geolocation + sunrise-sunset.org) for your timezone and cached;
-  the window then tracks real sunset → sunrise and refreshes once a day
+- **Sun data / Update now** — with **Sun** mode, your location (lat/lng + timezone)
+  is looked up once from the internet (IP geolocation); the sunrise/sunset times
+  are then computed **locally** for your timezone and cached, so the schedule keeps
+  working offline. `Update now` re-detects and recomputes; the window tracks real
+  sunset → sunrise and refreshes once a day.
 
 Your main **HDR** sliders are the day values; the night values override them only
 inside the window. Night settings are stored separately in

@@ -57,9 +57,10 @@ tone-mapping live, and saves settings back to the config.
 - `hyprhdr/i18n.py` — UI translations (English source strings → Russian). Set the
   active language with `i18n.set_language()`, wrap user-facing strings in
   `i18n.tr()`. English is the default.
-- `hyprhdr/sun.py` — sunrise/sunset lookup (`fetch_sun_times`) + IP geolocation
-  (`fetch_coordinates`); `hour_float()` is the pure UTC→local converter. All
-  network calls are graceful (timeout, `None`/raise on failure).
+- `hyprhdr/sun.py` — IP geolocation (`fetch_coordinates`, the only network call,
+  `None` on failure) + sunrise/sunset computed **locally** with the NOAA
+  algorithm (`fetch_sun_times`, no network; raises on polar day/night).
+  `hour_float()` is the pure ISO→local-hour converter.
 - `hyprhdr/tray.py` — StatusNotifierItem tray icon over D-Bus (no
   libappindicator needed). The icon is a monochrome (white) sun glyph, ARGB32,
   generated in Python with 4× supersampling, in sizes 16–128 px.

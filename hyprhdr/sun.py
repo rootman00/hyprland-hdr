@@ -1,24 +1,27 @@
-"""Sunrise/sunset lookups for the sun-based night schedule.
+"""Sunrise/sunset for the sun-based night schedule.
 
-Two network calls are involved, both kept graceful (small timeout, ``None`` on
-failure so the caller can fall back to manual hours or the previous cache):
-
-1. IP geolocation → latitude/longitude/timezone (``fetch_coordinates``).
-2. sunrise-sunset.org → sunrise/sunset UTC times (``fetch_sun_times``), which
-   are converted to local wall-clock hours in the configured IANA timezone.
+Only **one** network call is needed: ``fetch_coordinates`` looks up the public
+IP to get latitude/longitude and the IANA timezone. The sunrise/sunset times
+themselves are then computed **locally** with the NOAA solar-position algorithm
+(``fetch_sun_times``) — no third-party sun API, so the schedule keeps working
+offline once the coordinates are cached.
 """
 
 from __future__ import annotations
 
 import datetime as _dt
 import json
+import math
 import os
 import urllib.request
 from typing import Any
 from zoneinfo import ZoneInfo
 
 DEFAULT_TIMEOUT = 6.0
-_USER_AGENT = "hdr-manager/0.1 (+https://github.com/halideworks)"
+_USER_AGENT = "hdr-manager/0.1"
+
+# Official sunrise/sunset zenith: 90° + refraction + solar radius.
+_ZENITH_DEG = 90.833
 
 
 def system_timezone() -> str | None:
@@ -64,7 +67,12 @@ def hour_float(iso: str, tz: _dt.tzinfo | None = None) -> float:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=_dt.timezone.utc)
     local = dt.astimezone(tz or _dt.datetime.now().astimezone().tzinfo)
-    return local.hour + local.minute / 60.0 + local.second / 3600.0
+    return _hour_of(local)
+
+
+def _hour_of(dt: _dt.datetime) -> float:
+    """Local wall-clock hour of ``dt`` as a float (e.g. 7.55)."""
+    return dt.hour + dt.minute / 60.0 + dt.second / 3600.0
 
 
 def _open(url: str, timeout: float) -> Any:
@@ -80,7 +88,8 @@ def fetch_coordinates(timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any] | None
             d.get("latitude"), d.get("longitude"),
             (d.get("timezone") or {}).get("id") if isinstance(d.get("timezone"), dict) else None,
         )),
-        ("https://ip-api.com/json/", lambda d: (
+        # The free tier of ip-api.com is HTTP-only (HTTPS needs a paid key).
+        ("http://ip-api.com/json/", lambda d: (
             d.get("lat"), d.get("lon"), d.get("timezone"),
         )),
     )
@@ -107,22 +116,62 @@ def fetch_coordinates(timeout: float = DEFAULT_TIMEOUT) -> dict[str, Any] | None
     return None
 
 
+def _sun_minutes_utc(lat: float, lng: float, date: _dt.date) -> tuple[float | None, float | None]:
+    """(sunrise, sunset) as minutes from UTC midnight, or (None, None).
+
+    Standard NOAA/NOAA-spreadsheet formulation; accurate to ~1–2 minutes, which
+    is plenty for a night schedule. ``(None, None)`` means polar day/night.
+    """
+    n = date.timetuple().tm_yday
+    g = 2.0 * math.pi / 365.0 * (n - 1)
+
+    # Equation of time (minutes).
+    eqtime = 229.18 * (
+        0.000075
+        + 0.001868 * math.cos(g)
+        - 0.032077 * math.sin(g)
+        - 0.014615 * math.cos(2 * g)
+        - 0.040849 * math.sin(2 * g)
+    )
+    # Solar declination (radians).
+    decl = (
+        0.006918
+        - 0.399912 * math.cos(g)
+        + 0.070257 * math.sin(g)
+        - 0.006758 * math.cos(2 * g)
+        + 0.000907 * math.sin(2 * g)
+        - 0.002697 * math.cos(3 * g)
+        + 0.00148 * math.sin(3 * g)
+    )
+    lat_rad = math.radians(lat)
+    cos_ha = (
+        math.cos(math.radians(_ZENITH_DEG))
+        / (math.cos(lat_rad) * math.cos(decl))
+        - math.tan(lat_rad) * math.tan(decl)
+    )
+    if cos_ha > 1.0 or cos_ha < -1.0:
+        return None, None
+
+    ha_deg = math.degrees(math.acos(cos_ha))
+    sunrise = 720.0 - 4.0 * (lng + ha_deg) - eqtime
+    sunset = 720.0 - 4.0 * (lng - ha_deg) - eqtime
+    return sunrise, sunset
+
+
 def fetch_sun_times(lat: float, lng: float, tz_name: str | None = None,
-                    date: _dt.date | None = None,
-                    timeout: float = DEFAULT_TIMEOUT) -> dict[str, float]:
+                    date: _dt.date | None = None) -> dict[str, float]:
     """Sunrise/sunset as local wall-clock hour floats for ``date`` (today).
 
-    Returns ``{"sunrise": float, "sunset": float}`` (e.g. 7.05 and 18.7).
+    Computed locally (no network). Returns ``{"sunrise": float, "sunset": float}``
+    (e.g. 7.55 and 16.87). Raises ``ValueError`` on polar day/night.
     """
     date = date or _dt.date.today()
-    url = (
-        "https://api.sunrise-sunset.org/json"
-        f"?lat={lat}&lng={lng}&date={date.isoformat()}&formatted=0"
-    )
-    data = _open(url, timeout)
-    results = data["results"]
+    sunrise_min, sunset_min = _sun_minutes_utc(lat, lng, date)
+    if sunrise_min is None or sunset_min is None:
+        raise ValueError("no sunrise/sunset on this date (polar day/night)")
+
     tz = local_tz(tz_name)
-    return {
-        "sunrise": hour_float(results["sunrise"], tz),
-        "sunset": hour_float(results["sunset"], tz),
-    }
+    midnight_utc = _dt.datetime(date.year, date.month, date.day, tzinfo=_dt.timezone.utc)
+    sunrise = (midnight_utc + _dt.timedelta(minutes=sunrise_min)).astimezone(tz)
+    sunset = (midnight_utc + _dt.timedelta(minutes=sunset_min)).astimezone(tz)
+    return {"sunrise": _hour_of(sunrise), "sunset": _hour_of(sunset)}

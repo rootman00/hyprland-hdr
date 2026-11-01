@@ -247,6 +247,21 @@ class TestSun(unittest.TestCase):
         self.assertEqual(gui._fmt_hour(7.0), "07:00")
         self.assertEqual(gui._fmt_hour(23.999), "00:00")
 
+    def test_fetch_sun_times_local(self):
+        # Moscow, 1 Nov 2026: sunrise ≈ 07:33, sunset ≈ 16:52 (local time).
+        times = sun.fetch_sun_times(
+            55.7520, 37.6178, tz_name="Europe/Moscow", date=datetime.date(2026, 11, 1)
+        )
+        self.assertAlmostEqual(times["sunrise"], 7.56, delta=0.25)
+        self.assertAlmostEqual(times["sunset"], 16.87, delta=0.25)
+
+    def test_fetch_sun_times_polar_raises(self):
+        # Tromsø on the December solstice: polar night, no sunrise/sunset.
+        with self.assertRaises(ValueError):
+            sun.fetch_sun_times(
+                69.6, 18.9, tz_name="Europe/Oslo", date=datetime.date(2026, 12, 21)
+            )
+
 
 class TestI18n(unittest.TestCase):
     def test_default_is_english(self):
